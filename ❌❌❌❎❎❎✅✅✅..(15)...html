@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <title>JSON දත්ත විශ්ලේෂණ ඇප්</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+  <style>
+    body {font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 20px; line-height: 1.6;}
+    h1 { color: #2c3e50; font-size: 1.5em; margin-top: 30px; }
+    input, button { padding: 10px 15px; margin: 5px 0; font-size: 1em; border-radius: 8px; border: 1px solid #ddd; }
+    button { background-color: #3498db; color: #fff; border: none; cursor: pointer; transition: all 0.3s ease; font-weight: 600; }
+    button:hover { background-color: #2980b9; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    #analysisOutput { background: #fff; border: 1px solid #ddd; border-radius: 12px; margin-top: 10px; padding: 15px; display: none; overflow-x: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #eee; padding: 12px; text-align: center; }
+    th { background-color: #f8f9fa; color: #2c3e50; font-weight: bold; }
+    tr:nth-child(even) { background-color: #fafafa; }
+    
+    .toggle-btn { background-color: #16a085; }
+    .year-display { font-weight: bold; margin-left: 5px; padding: 5px 12px; border-radius: 6px; color: #fff; font-size: 0.9em; }
+    .year1 { background-color: #27ae60; }
+    .year2 { background-color: #2980b9; }
+    .download-btn { background-color: #2ecc71; margin-right: 5px; }
+    .reset-btn { background-color: #e74c3c; font-size: 0.8em; padding: 5px 10px; }
+    
+    #predictionBox { 
+        margin-top: 30px; 
+        padding: 40px; 
+        background: rgba(255, 255, 255, 0.7); 
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 30px; 
+        display: none; 
+        box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    #predictionBox::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(230, 126, 34, 0.05) 0%, transparent 70%);
+        z-index: -1;
+    }
+
+    #mainPredictionTitle {
+        color: #d35400; 
+        text-align: center; 
+        font-size: 2.8em; 
+        font-weight: 900; 
+        letter-spacing: -1px;
+        margin-bottom: 30px;
+        text-transform: uppercase;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .prediction-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 20px;
+        border: 1px solid rgba(230, 126, 34, 0.2);
+    }
+
+    .draw-date-box { 
+        background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%);
+        padding: 20px 40px; 
+        border-radius: 50px; 
+        font-weight: 800; 
+        color: #fff;
+        font-size: 2.2em; 
+        box-shadow: 0 10px 20px rgba(255, 94, 98, 0.3);
+        display: inline-block;
+        margin: 15px 0;
+    }
+
+    .pred-row { 
+        margin-bottom: 15px; 
+        font-family: 'Monaco', 'Consolas', monospace; 
+        font-size: 1.8em; 
+        font-weight: bold;
+        letter-spacing: 4px; 
+        color: #2c3e50;
+        padding: 10px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 10px;
+    }
+
+    .prediction-result { 
+        background: rgba(255, 255, 255, 0.5); 
+        padding: 20px; 
+        border-left: 8px solid #d35400; 
+        margin-top: 15px; 
+        line-height: 2; 
+        font-size: 1.6em; 
+        font-weight: 800;
+        color: #e67e22;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    }
+
+    .best-numbers-grid { width: 100%; border-collapse: separate; border-spacing: 0 10px; margin-top: 20px; }
+    .best-numbers-grid td { background: rgba(255,255,255,0.4); border: none; padding: 20px; font-size: 1.8em; border-radius: 0 15px 15px 0; }
+    .label-cell { 
+        background: linear-gradient(135deg, #27ae60 0%, #11998e 100%) !important; 
+        color: #fff !important; 
+        width: 100px; 
+        border-radius: 15px 0 0 15px !important;
+        font-weight: 900;
+    }
+    
+    .num-tag { 
+        display: inline-block; 
+        background: #fff; 
+        color: #333; 
+        padding: 8px 20px; 
+        border-radius: 12px; 
+        cursor: pointer; 
+        transition: all 0.3s; 
+        margin: 5px; 
+        border: 2px solid #eee;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .num-tag:hover { transform: scale(1.1); z-index: 10; }
+
+    .ball {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        margin: 5px;
+        font-weight: 900;
+        font-size: 1.3em;
+        color: #fff;
+        box-shadow: inset -4px -4px 6px rgba(0,0,0,0.2), 0 5px 10px rgba(0,0,0,0.1);
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
+    .rejected-face {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 5px;
+        padding: 10px;
+        background: #f8d7da;
+        border-radius: 15px;
+        border: 2px solid #ff4757;
+        color: #721c24;
+    }
+    .sad-icon { font-size: 1.5em; margin-bottom: 2px; }
+
+    .summary-board {
+        margin-top: 40px;
+        padding: 30px;
+        background: rgba(44, 62, 80, 0.03);
+        border: 2px solid #2c3e50;
+        border-radius: 25px;
+        backdrop-filter: blur(10px);
+    }
+    .summary-board h3 { font-size: 2em; margin-bottom: 25px; font-weight: 800; }
+    .summary-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 20px;
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.6);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.02);
+    }
+    .summary-label { width: 220px; font-weight: 800; font-size: 1.4em; }
+    .summary-numbers { flex-grow: 1; display: flex; flex-wrap: wrap; align-items: center; }
+
+    .bg-red { background: #ff4757 !important; color: white !important; border-color: #ff4757; }
+    .bg-light-green { background: #2ed573 !important; color: white !important; border-color: #2ed573; }
+    .bg-dark-green { background: #1e3799 !important; color: #fff !important; border-color: #1e3799; box-shadow: 0 10px 20px rgba(30, 55, 153, 0.3); }
+    .bg-yellow { background: #ffa502 !important; color: #fff !important; border-color: #ffa502; }
+
+    .storage-controls { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .cod-box { margin-top: 25px; padding: 15px; background: #2c3e50; color: #fff; border-radius: 10px; font-size: 1.2em; }
+    .selector-btn, .code-selector-btn { margin: 10px 5px; border-radius: 10px; padding: 12px 25px; }
+    .active-selector, .active-code { border: 4px solid #2c3e50; transform: scale(1.05); }
+
+    .rank1 { background-color: #27ae60 !important; color: #fff; font-weight: bold; }
+    .rank2 { background-color: #2ecc71 !important; color: #fff; font-weight: bold; }
+    .rank3 { background-color: #f1c40f !important; color: #000; font-weight: bold; }
+    .image-preview { max-width: 300px; margin-top: 10px; display: none; border-radius: 10px; }
+
+    #jsonControlWrapper { display: none; }
+    .admin-toggle-btn { background-color: #34495e; margin-bottom: 10px; }
+    #photoSectionWrapper { display: none; margin-top: 10px; border: 1px solid #ddd; padding: 15px; border-radius: 12px; background: #fff; }
+    .photo-toggle-btn { background-color: #8e44ad; margin-bottom: 10px; }
+    #manualCodeWrapper { display: none; margin-top: 10px; border: 1px solid #ddd; padding: 15px; border-radius: 12px; background: #fff; }
+    .manual-toggle-btn { background-color: #2c3e50; margin-bottom: 10px; }
+    #yearDateSectionWrapper { display: none; margin-top: 10px; border: 1px solid #ddd; padding: 15px; border-radius: 12px; background: #fff; }
+    .year-date-toggle-btn { background-color: #d35400; margin-bottom: 10px; }
+
+    .stored-data-btn { background-color: #2c3e50; margin-bottom: 10px; }
+    #storedDataWrapper { display: none; margin-top: 10px; padding: 15px; border: 2px solid #2c3e50; border-radius: 12px; background: #fff; }
+    .edit-btn { background-color: #f39c12; padding: 5px 10px; font-size: 0.8em; margin-left: 5px; }
+    .delete-btn { background-color: #e74c3c; padding: 5px 10px; font-size: 0.8em; margin-left: 5px; }
+    .error-msg { color: #e74c3c; font-weight: bold; margin-top: 10px; display: block; }
+    .res-number { color: #1e3799; font-weight: 800; font-size: 1.1em; }
+    .res-date { color: #666; font-size: 0.9em; }
+
+    #activeDataSummary { 
+      margin: 10px 0; 
+      padding: 10px; 
+      background: #fff; 
+      border-radius: 10px; 
+      border-left: 5px solid #d35400; 
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      display: none;
+    }
+    .save-all-btn { background-color: #27ae60; font-size: 1.1em; width: 100%; margin-top: 15px; padding: 15px; }
+    .save-guess-btn { background-color: #d35400; font-size: 1.2em; width: 100%; margin-top: 15px; padding: 20px; font-weight: 900; border-radius: 15px; border: 3px solid #fff; }
+    #predictionContent, #cod1FullSection, #cod2FullSection { display: none; }
+    .toggle-sub-btn { background-color: #34495e; color: white; border-radius: 10px; padding: 10px 20px; margin-bottom: 15px; }
+
+    #linkSection { margin-top: 10px; padding: 15px; border: 2px dashed #3498db; border-radius: 12px; background: #eef7ff; display: none; }
+    .link-btn { background-color: #3498db; color: #fff; width: 100%; margin-top: 10px; font-weight: bold; padding: 12px; }
+    #externalFrameWrapper { margin-top: 20px; border: 2px solid #3498db; border-radius: 15px; overflow: hidden; display: none; }
+    #externalFrame { width: 100%; height: 600px; border: none; }
+    .link-status-msg { font-size: 0.9em; font-weight: bold; margin-top: 5px; display: block; }
+
+    #day3AnalysisWrapper {
+        margin-top: 20px;
+        padding: 20px;
+        background: #fff;
+        border: 2px solid #8e44ad;
+        border-radius: 20px;
+        display: none;
+    }
+    .day3-title { color: #8e44ad; font-weight: 900; font-size: 1.5em; text-align: center; margin-bottom: 15px; }
+    .day3-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 15px; }
+    .day-card { background: #f9f9f9; padding: 10px; border-radius: 10px; border-left: 5px solid #8e44ad; font-size: 0.9em; }
+
+    /* Guess Display Styles in Table */
+    .mini-ball { padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin: 1px; color: #fff; font-weight: bold; display: inline-block; }
+    .top8-badge { background: #6c5ce7; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; display: block; margin-top: 5px; font-weight: bold; }
+    
+    /* Top 8 Formatting in Data Table */
+    .top8-item { padding: 1px 4px; border-radius: 3px; color: white; font-weight: bold; margin: 0 1px; }
+    .top8-green { background-color: #1b5e20; }
+    .top8-yellow { background-color: #f1c40f; color: black; }
+    .top8-red { background-color: #e74c3c; }
+  </style>
+</head>
+<body>
+
+  <button id="toggleAdminBtn" class="admin-toggle-btn">⚙️ නව JSON දත්ත ඇතුළත් කිරීම</button>
+  <div id="jsonControlWrapper">
+      <div class="section-header">
+        <h1>JSON ගොනුව උඩුගත කරන්න</h1>
+        <button onclick="resetJSON()" class="reset-btn">JSON Reset</button>
+      </div>
+      <div class="storage-controls">
+        <input type="file" id="jsonFileInput" accept=".json">
+        <button id="uploadBtn">ඇතුලත් කරන්න</button>
+        <button id="saveToStorageBtn" style="background-color: #27ae60;">JSON දත්ත ගබඩා කරන්න (Save to Browser)</button>
+      </div>
+  </div>
+  <p id="message"></p>
+  <div id="yearList"></div>
+  <hr>
+
+  <button id="togglePhotoBtn" class="photo-toggle-btn">📸 Screenshot ඇතුළත් කිරීමේ පුවරුව</button>
+  <button id="toggleStoredDataBtn" class="stored-data-btn">📂 සුරැකි දත්ත (Codes) පෙන්වන්න</button>
+
+  <div id="photoSectionWrapper">
+    <div class="section-header">
+      <h1>Screenshot (Photo) එකක් ඇතුළත් කරන්න</h1>
+      <button onclick="resetPhoto()" class="reset-btn">Photo Reset</button>
+    </div>
+    <input type="file" id="imageFileInput" accept="image/*">
+    <button id="uploadImageBtn" style="background-color: #8e44ad;">Photo එක ඇතුලත් කරන්න</button>
+    <span id="loader" style="display:none;"> පින්තූරය කියවමින් පවතී... ⌛</span>
+    <p id="imageMessage"></p>
+    <img id="previewImg" class="image-preview">
+  </div>
+
+  <div id="storedDataWrapper">
+      <h3>📁 Browser එකෙහි සුරැකි ඇති සියලුම Codes</h3>
+      <table id="storedDataTable">
+          <thead>
+              <tr>
+                  <th>Draw Date</th>
+                  <th>Draw No / Top 8</th> 
+                  <th>Code 1</th>
+                  <th>Code 2</th>
+                  <th>Guessed Numbers</th>
+                  <th>Results & Date</th>
+                  <th>Action</th>
+              </tr>
+          </thead>
+          <tbody id="storedDataBody"></tbody>
+      </table>
+  </div>
+
+  <hr>
+
+  <button id="toggleManualBtn" class="manual-toggle-btn">⌨️ Code ඇතුළත් කිරීමේ පුවරුව</button>
+  <div id="manualCodeWrapper">
+    <div class="section-header">
+      <h1>දත්ත ඇතුළත් කරන්න</h1>
+      <button onclick="resetManualCodes()" class="reset-btn">Codes Reset</button>
+    </div>
+    <div id="linkSection">
+      <label><b>HTML ගොනුව ලබාදෙන්න:</b></label><br>
+      <input type="file" id="htmlAppFileInput" accept=".html" style="width: 80%;">
+      <button id="resetAppLinkBtn" class="reset-btn">ඉවත් කරන්න</button>
+      <span id="linkStatusMsg" class="link-status-msg"></span>
+    </div>
+    <button id="toggleExternalAppBtn" class="link-btn" style="display:none;">🌐 ඇතුලත් කල ඇප් එක පෙන්වන්න</button>
+    <div id="externalFrameWrapper">
+       <iframe id="externalFrame" src=""></iframe>
+    </div>
+    <div id="manualErrorMsg" class="error-msg"></div>
+    <label><b>Code 1:</b></label><br>
+    <input type="text" id="manualCod1Input" placeholder="Code 1 (Ex: 1234)">
+    <div id="manualCod1Display" style="color: #1b5e20; font-weight: bold; margin-bottom: 10px;"></div>
+    <label><b>Draw (දිනුම් වාරය):</b></label><br>
+    <input type="text" id="manualDrawInput" placeholder="Draw (Ex: 2548)">
+    <div id="manualDrawDisplay" style="color: #d35400; font-weight: bold; margin-bottom: 10px;"></div>
+    <label><b>Code 2:</b></label><br>
+    <input type="text" id="manualCod2Input" placeholder="Code 2 (Ex: 5678)">
+    <div id="manualCod2Display" style="color: #1b5e20; font-weight: bold; margin-bottom: 10px;"></div>
+    <label><b>Results & Date:</b></label><br>
+    <input type="text" id="manualResultDateInput" placeholder="Ex: T973043 & 03/02/2026">
+    <button id="saveAllDataBtn" class="save-all-btn">💾 දත්ත සියල්ලම සුරකින්න (Save)</button>
+    <p id="saveStatusMsg" style="text-align:center; font-weight:bold;"></p>
+  </div>
+  
+  <hr>
+
+  <button id="toggleYearDateBtn" class="year-date-toggle-btn">📅 වර්ෂය සහ දිනය ඇතුළත් කිරීමේ පුවරුව</button>
+  <div id="activeDataSummary">
+    <span id="summaryDrawDate" style="color:#d35400;">Date: -</span> ➡️ 
+    <span id="summaryC1" style="color:#2c3e50;">C1: -</span> ➡️ 
+    <span id="summaryC2" style="color:#2c3e50;">C2: -</span>
+  </div>
+
+  <div id="yearDateSectionWrapper">
+    <div class="section-header">
+      <h1>වර්ෂය සහ දිනය ඇතුලත් කරන්න</h1>
+      <button onclick="resetDateAndYear()" class="reset-btn">Year/Date Reset</button>
+    </div>
+    <input type="number" id="yearInput" placeholder="වර්ෂය (2023)" min="1900" max="2100">
+    <input type="date" id="drawDateInput">
+    <br>
+    <button id="submitYearBtn">පළමු වර්ෂය ඇතුලත් කරන්න</button>
+    <button id="submitSecondYearBtn">දෙවැනි වර්ෂය ඇතුලත් කරන්න</button>
+    <button id="submitDrawDateBtn" style="background-color: #d35400;">Draw Date එක ඇතුලත් කරන්න</button>
+    <p id="yearMessage"></p>
+    <div>
+      <span id="year1Display" class="year-display year1" style="display:none;"></span>
+      <span id="year2Display" class="year-display year2" style="display:none;"></span>
+      <span id="drawDateDisplay" class="year-display" style="display:none; background-color: #e67e22;"></span>
+    </div>
+  </div>
+
+  <hr>
+  <div class="section-header">
+    <h1>පළමු අංක 2 ඇතුළත් කරන්න</h1>
+    <button onclick="resetFirst2()" class="reset-btn">Reset</button>
+  </div>
+  <input type="text" id="first2Input" placeholder="උදාහරණය: 48">
+  <button id="submitFirst2Btn">ඇතුලත් කරන්න</button>
+  <p id="first2Message"></p>
+  <hr>
+
+  <button id="analyzeYearBtn" style="background-color:#27ae60;">විශ්ලේෂණය පෙන්වන්න</button>
+  <button id="toggleAnalysisBtn" class="toggle-btn" style="display:none;">දත්ත පෙන්වන්න/සඟවන්න</button>
+  <button id="downloadExcelBtn" class="download-btn" style="display:none;">⬇ Excel ලෙස බාගන්න</button>
+  <button id="downloadJsonBtn" class="download-btn" style="display:none;">⬇ JSON ලෙස බාගන්න</button>
+  <button id="getLast2Btn" class="download-btn" style="background-color:#9b59b6;display:none;">🎯 අවසාන අංක 2 ලබාගන්න</button>
+  <button id="getPredictionBtn" class="download-btn" style="background-color:#e67e22;display:none;">🔮 අනුමාන පුවරුව පෙන්වන්න/සඟවන්න</button>
+
+  <div id="analysisOutput"></div>
+  <div id="last2Table" style="display:none; margin-top:20px; background:#fff; padding:20px; border-radius:15px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2 style="color:#27ae60; margin:0;">🎯 අනුමාන අංක විශ්ලේෂණ පද්ධතිය</h2>
+        <button id="saveTop8Btn" style="background-color:#6c5ce7; font-weight:bold; padding:12px 20px; border-radius:12px;">💾 Save Top 8 Numbers</button>
+    </div>
+    <p id="top8StatusMsg" style="text-align:right; font-weight:bold;"></p>
+    <table>
+      <thead>
+        <tr><th>මුළ අංකය</th><th>අග අංකය</th><th>Best numbers</th></tr>
+      </thead>
+      <tbody id="last2TableBody"></tbody>
+    </table>
+  </div>
+
+  <div id="predictionBox">
+    <h2 id="mainPredictionTitle">🔮 Best guess number passed</h2>
+    <div style="text-align: center; margin-bottom: 25px;">
+        <span style="font-weight: 800; display: block; margin-bottom: 10px; font-size: 1.2em;">අනුමාන නිර්මාණය සඳහා තෝරාගන්න:</span>
+        <button id="setTop4Btn" class="selector-btn">Top 4 Numbers</button>
+        <button id="setTop5Btn" class="selector-btn">Top 5 Numbers</button>
+        <div style="margin-top: 15px;">
+            <span style="font-weight: 800; display: block; margin-bottom: 10px; font-size: 1.2em;">Code Numbers තේරීම:</span>
+            <button id="setCod6Btn" class="code-selector-btn" style="background-color:#6c5ce7;">cod 6 number</button>
+            <button id="setCod7Btn" class="code-selector-btn" style="background-color:#6c5ce7;">cod 7 number</button>
+            <button id="setCod8Btn" class="code-selector-btn" style="background-color:#6c5ce7;">cod 8 number</button>
+        </div>
+        
+        <button id="day3AnalysisBtn" style="background-color:#8e44ad; color:white; width: 100%; margin-top: 20px; padding: 15px; font-size: 1.2em; border-radius: 15px;">
+            📊 දින 3ක අනුමාන ලබාගන්න (Compare Previous 2 Days)
+        </button>
+    </div>
+
+    <div id="day3AnalysisWrapper">
+        <div class="day3-title">📅 දින 3ක ඒකාබද්ධ විශ්ලේෂණය</div>
+        <div id="day3InfoGrid" class="day3-grid"></div>
+        <div id="day3CommonResults" style="background: #f0fdf4; padding: 20px; border-radius: 15px; border: 2px dashed #27ae60;">
+            <h4 style="margin: 0 0 10px 0; color: #1b5e20;">⭐ දින 3ටම පොදු සහ තෝරාගත් අනුමාන (Matched):</h4>
+            <div id="day3NumbersGrid"></div>
+        </div>
+    </div>
+
+    <div class="prediction-header">
+        <div id="predictionTimestamp" style="font-size: 1.2em; color: #666; font-weight: 600;"></div>
+        <center><div id="predictionDrawDate" class="draw-date-box" style="display:none;"></div></center>
+    </div>
+    <center>
+        <button id="toggleRowsBtn" class="toggle-sub-btn">👁️ අනුමාන පේළි සහ Codes පෙන්වන්න/සඟවන්න</button>
+    </center>
+    <div id="predictionContent"></div>
+    <div id="screenshotData">
+        <div id="cod1FullSection">
+            <div class="cod-box">CODE 1 (TOP ROW): <span id="cod1Display" style="font-weight: 900; letter-spacing: 5px;">දත්ත නොමැත</span></div>
+            <div id="cod1Predictions" class="prediction-result"></div>
+        </div>
+        <div id="cod2FullSection">
+            <div class="cod-box" style="background:#d35400;">CODE 2 (BOTTOM ROW): <span id="cod2Display" style="font-weight: 900; letter-spacing: 5px;">දත්ත නොමැත</span></div>
+            <div id="cod2Predictions" class="prediction-result"></div>
+        </div>
+        <div id="bestPredictionsBox" style="margin-top:40px;">
+          <h3 style="color:#27ae60; font-size: 2.2em; font-weight: 900; border-bottom: 3px solid #27ae60; padding-bottom: 10px; display: inline-block;">⭐ BEST අනුමාන අංක (00-99)</h3>
+          <div style="float: right;">
+             <button id="undoColorBtn" class="undo-btn" style="background:#34495e; color:white; padding: 10px 20px;">↩ UNDO</button>
+          </div>
+          <div style="clear:both;"></div>
+          <div id="bestNumbersContent"></div>
+        </div>
+        <div class="summary-board">
+            <h3 id="summaryBoardTitle" style="text-align: center;">📊 Best guess number passed</h3>
+            <div class="summary-row" style="border-left: 10px solid #1e3799;">
+                <div class="summary-label" style="color:#1e3799;">BEST NUMBERS:</div>
+                <div id="sumBest" class="summary-numbers"></div>
+            </div>
+            <div class="summary-row" style="border-left: 10px solid #2ed573;">
+                <div class="summary-label" style="color:#27ae60;">GOOD NUMBERS:</div>
+                <div id="sumGood" class="summary-numbers"></div>
+            </div>
+            <div class="summary-row" style="border-left: 10px solid #ffa502;">
+                <div class="summary-label" style="color:#d4ac0d;">NORMAL NUMBERS:</div>
+                <div id="sumNormal" class="summary-numbers"></div>
+            </div>
+            <div class="summary-row" style="border-left: 10px solid #ff4757;">
+                <div class="summary-label" style="color:#e74c3c;">REJECTED NUMBERS:</div>
+                <div id="sumRejected" class="summary-numbers"></div>
+            </div>
+            
+            <button id="saveGuessNumbersBtn" class="save-guess-btn">💾 Save Guess Numbers (අංක සුරකින්න)</button>
+            <p id="guessSaveStatus" style="text-align:center; font-weight:bold; margin-top:10px;"></p>
+        </div>
+    </div>
+  </div>
+
+  <script>
+    let loadedJson=null,firstYear=null,secondYear=null,matchedResults=[],selectedDrawDate=null;
+    let scCod1 = "දත්ත නොමැත", scCod2 = "දත්ත නොමැත", scDraw = "";
+    let colorHistory = []; 
+    let currentLimit = 4;
+    let currentCodeLimit = 7;
+    let currentHtmlFileUrl = null; 
+
+    // --- Save Top 8 Numbers Logic ---
+    document.getElementById("saveTop8Btn").onclick = () => {
+        if(!selectedDrawDate) { alert("කරුණාකර පළමුව Draw Date එකක් තෝරා 'Draw Date ඇතුලත් කරන්න' බොත්තම ඔබන්න."); return; }
+        if(matchedResults.length === 0) { alert("විශ්ලේෂණය කිරීමට දත්ත නොමැත. කරුණාකර 'විශ්ලේෂණය පෙන්වන්න' ඔබන්න."); return; }
+
+        const topData = getTopNumbers();
+        const top8 = topData.sorted.slice(0, 8);
+        
+        let data = getStoredManualData();
+        if(!data[selectedDrawDate]) {
+            data[selectedDrawDate] = { c1: scCod1, c2: scCod2, draw: scDraw, res: "" };
+        }
+        
+        data[selectedDrawDate].top8 = top8;
+        localStorage.setItem("manualCodeData", JSON.stringify(data));
+        
+        const status = document.getElementById("top8StatusMsg");
+        status.textContent = "✅ Top 8 Numbers (" + top8.join(",") + ") Draw Date එකට සුරැකිණි!";
+        status.style.color = "green";
+        renderStoredDataTable();
+        setTimeout(() => { status.textContent = ""; }, 3000);
+    };
+
+    // --- Save Guess Numbers Logic ---
+    document.getElementById("saveGuessNumbersBtn").onclick = () => {
+        if(!selectedDrawDate) { alert("කරුණාකර පළමුව Draw Date එකක් තෝරා 'Draw Date ඇතුලත් කරන්න' ඔබන්න."); return; }
+        
+        const tags = document.querySelectorAll(".num-tag");
+        let best=[], good=[], normal=[], rejected=[];
+        
+        tags.forEach(t => {
+            const val = t.textContent;
+            if(t.classList.contains("bg-dark-green")) best.push(val);
+            else if(t.classList.contains("bg-light-green")) good.push(val);
+            else if(t.classList.contains("bg-yellow")) normal.push(val);
+            else if(t.classList.contains("bg-red")) rejected.push(val);
+        });
+
+        if(best.length === 0 && good.length === 0 && normal.length === 0 && rejected.length === 0) {
+            alert("සුරැකීමට කිසිදු අංකයක් වර්ණ ගන්වා නැත."); return;
+        }
+
+        let data = getStoredManualData();
+        if(!data[selectedDrawDate]) {
+            data[selectedDrawDate] = { c1: scCod1, c2: scCod2, draw: scDraw, res: "" };
+        }
+        
+        data[selectedDrawDate].guesses = { best, good, normal, rejected };
+        localStorage.setItem("manualCodeData", JSON.stringify(data));
+        
+        const status = document.getElementById("guessSaveStatus");
+        status.textContent = "✅ අනුමාන අංක සාර්ථකව Draw Date එකට අදාළව සුරැකිණි!";
+        status.style.color = "green";
+        renderStoredDataTable();
+        setTimeout(() => { status.textContent = ""; }, 3000);
+    };
+
+    // --- Day 3 Logic ---
+    document.getElementById("day3AnalysisBtn").onclick = () => {
+        if (!selectedDrawDate) { alert("කරුණාකර පළමුව Draw Date එකක් තෝරා 'Draw Date ඇතුලත් කරන්න' බොත්තම ඔබන්න."); return; }
+        const wrapper = document.getElementById("day3AnalysisWrapper");
+        wrapper.style.display = (wrapper.style.display === "none") ? "block" : "none";
+        if (wrapper.style.display === "block") performDay3Analysis();
+    };
+
+    function performDay3Analysis() {
+        const stored = getStoredManualData();
+        const dates = Object.keys(stored).sort((a,b) => new Date(b) - new Date(a));
+        const currentIndex = dates.indexOf(selectedDrawDate);
+        
+        if (currentIndex === -1) {
+            alert("තෝරාගත් දිනය සුරැකි දත්ත අතර නැත. කරුණාකර දත්ත සුරකින්න.");
+            return;
+        }
+
+        const selectedDates = dates.slice(currentIndex, currentIndex + 3);
+        const gridInfo = document.getElementById("day3InfoGrid");
+        const resultsGrid = document.getElementById("day3NumbersGrid");
+        gridInfo.innerHTML = "";
+        
+        let allDayGenNumbers = []; 
+        const topData = getTopNumbers();
+        const topSelected = topData.sorted.slice(0, currentLimit);
+        const topCode = topData.sorted.slice(0, currentCodeLimit);
+        
+        let genSet = new Set();
+        topSelected.forEach(t => {
+            topCode.forEach(o => { 
+                genSet.add(t + o); 
+                genSet.add(o + t); 
+            });
+        });
+
+        selectedDates.forEach(d => {
+            const data = stored[d];
+            const card = document.createElement("div");
+            card.className = "day-card";
+            card.innerHTML = `<b>Date: ${d}</b><br>C1: ${data.c1 || '-'}<br>C2: ${data.c2 || '-'}`;
+            gridInfo.appendChild(card);
+
+            const c1Preds = generateCodePredictions(data.c1, topSelected, "both");
+            const c2Preds = generateCodePredictions(data.c2, topSelected, "rtl");
+            
+            c1Preds.forEach(p => p.split(':').forEach(n => { if(genSet.has(n.trim())) allDayGenNumbers.push(n.trim()); }));
+            c2Preds.forEach(n => { if(genSet.has(n.trim())) allDayGenNumbers.push(n.trim()); });
+        });
+
+        let counts = {};
+        allDayGenNumbers.forEach(n => counts[n] = (counts[n] || 0) + 1);
+        let finalNumbers = Object.keys(counts).filter(n => counts[n] <= 3).sort();
+
+        if (finalNumbers.length > 0) {
+            let groups = {};
+            finalNumbers.forEach(n => {
+                let lastDigit = n[1];
+                if (!groups[lastDigit]) groups[lastDigit] = [];
+                groups[lastDigit].push(n);
+            });
+            
+            let gridTable = '<table class="best-numbers-grid"><tbody>';
+            Object.keys(groups).sort().forEach(d => {
+                gridTable += `<tr><td class="label-cell" style="background:linear-gradient(135deg, #8e44ad 0%, #6c5ce7 100%) !important;">${d}</td><td>`;
+                groups[d].forEach(num => {
+                    gridTable += `<span class="num-tag" onclick="handleColorChange(this)">${num}</span>`;
+                });
+                gridTable += '</td></tr>';
+            });
+            resultsGrid.innerHTML = gridTable + '</tbody></table>';
+        } else {
+            resultsGrid.innerHTML = "<p>ගැලපෙන අංක හමු නොවීය.</p>";
+        }
+    }
+
+    document.getElementById("htmlAppFileInput").onchange = (e) => {
+        const file = e.target.files[0];
+        const status = document.getElementById("linkStatusMsg");
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const base64String = event.target.result;
+                localStorage.setItem("storedHtmlApp", base64String);
+                localStorage.setItem("storedHtmlAppName", file.name);
+                loadStoredHtmlApp();
+                status.textContent = "✅ ගොනුව සාර්ථකව Browser එකෙහි සුරැකිණි!";
+                status.style.color = "green";
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    function loadStoredHtmlApp() {
+        const storedApp = localStorage.getItem("storedHtmlApp");
+        const storedName = localStorage.getItem("storedHtmlAppName");
+        const linkBtn = document.getElementById("toggleExternalAppBtn");
+        if (storedApp) {
+            currentHtmlFileUrl = storedApp; 
+            linkBtn.style.display = "block";
+            linkBtn.textContent = "🌐 " + (storedName || "ඇප් එක") + " පෙන්වන්න/සඟවන්න";
+        }
+    }
+
+    document.getElementById("resetAppLinkBtn").onclick = () => {
+        if(confirm("ගොනුව Browser එකෙන් ඉවත් කිරීමට අවශ්‍යද?")) {
+            localStorage.removeItem("storedHtmlApp");
+            localStorage.removeItem("storedHtmlAppName");
+            document.getElementById("htmlAppFileInput").value = "";
+            document.getElementById("toggleExternalAppBtn").style.display = "none";
+            document.getElementById("externalFrameWrapper").style.display = "none";
+            document.getElementById("linkStatusMsg").textContent = "🗑️ ගොනුව ඉවත් කරන ලදි.";
+            document.getElementById("linkStatusMsg").style.color = "red";
+            currentHtmlFileUrl = null;
+        }
+    };
+
+    document.getElementById("toggleExternalAppBtn").onclick = () => {
+        const wrapper = document.getElementById("externalFrameWrapper");
+        const frame = document.getElementById("externalFrame");
+        if(wrapper.style.display === "none" || wrapper.style.display === "") {
+            frame.src = currentHtmlFileUrl;
+            wrapper.style.display = "block";
+        } else {
+            wrapper.style.display = "none";
+            frame.src = "";
+        }
+    };
+
+    function updateActiveSummary() {
+        const summaryDiv = document.getElementById("activeDataSummary");
+        const panel = document.getElementById("yearDateSectionWrapper");
+        if (panel.style.display === "none" || panel.style.display === "") {
+            summaryDiv.style.display = "block";
+            document.getElementById("summaryDrawDate").textContent = "Date: " + (selectedDrawDate || "-");
+            document.getElementById("summaryC1").textContent = "C1: " + scCod1;
+            document.getElementById("summaryC2").textContent = "C2: " + scCod2;
+        } else {
+            summaryDiv.style.display = "none";
+        }
+    }
+
+    document.getElementById("toggleAdminBtn").onclick = () => {
+        const wrapper = document.getElementById("jsonControlWrapper");
+        wrapper.style.display = (wrapper.style.display === "none" || wrapper.style.display === "") ? "block" : "none";
+        document.getElementById("toggleAdminBtn").textContent = (wrapper.style.display === "block") ? "❌ සැකසුම් සඟවන්න" : "⚙️ නව JSON දත්ත ඇතුළත් කිරීම";
+    };
+
+    document.getElementById("togglePhotoBtn").onclick = () => {
+        const photoWrapper = document.getElementById("photoSectionWrapper");
+        photoWrapper.style.display = (photoWrapper.style.display === "none" || photoWrapper.style.display === "") ? "block" : "none";
+        document.getElementById("togglePhotoBtn").textContent = (photoWrapper.style.display === "block") ? "❌ Photo පුවරුව සඟවන්න" : "📸 Screenshot ඇතුළත් කිරීමේ පුවරුව";
+    };
+
+    document.getElementById("toggleManualBtn").onclick = () => {
+        const manualWrapper = document.getElementById("manualCodeWrapper");
+        const linkSection = document.getElementById("linkSection");
+        const isOpening = (manualWrapper.style.display === "none" || manualWrapper.style.display === "");
+        manualWrapper.style.display = isOpening ? "block" : "none";
+        linkSection.style.display = isOpening ? "block" : "none";
+        document.getElementById("toggleManualBtn").textContent = isOpening ? "❌ Code පුවරුව සඟවන්න" : "⌨️ Code ඇතුළත් කිරීමේ පුවරුව";
+    };
+
+    document.getElementById("toggleYearDateBtn").onclick = () => {
+        const yrWrapper = document.getElementById("yearDateSectionWrapper");
+        yrWrapper.style.display = (yrWrapper.style.display === "none" || yrWrapper.style.display === "") ? "block" : "none";
+        document.getElementById("toggleYearDateBtn").textContent = (yrWrapper.style.display === "block") ? "❌ වර්ෂය සහ දිනය සඟවන්න" : "📅 වර්ෂය සහ දිනය ඇතුළත් කිරීමේ පුවරුව";
+        updateActiveSummary();
+    };
+
+    document.getElementById("toggleStoredDataBtn").onclick = () => {
+        const wrapper = document.getElementById("storedDataWrapper");
+        const btn = document.getElementById("toggleStoredDataBtn");
+        if(wrapper.style.display === "none" || wrapper.style.display === "") {
+            wrapper.style.display = "block";
+            btn.textContent = "❌ සුරැකි දත්ත පුවරුව සඟවන්න";
+            renderStoredDataTable();
+        } else {
+            wrapper.style.display = "none";
+            btn.textContent = "📂 සුරැකි දත්ත (Codes) පෙන්වන්න";
+        }
+    };
+
+    function getStoredManualData() {
+        const stored = localStorage.getItem("manualCodeData");
+        return stored ? JSON.parse(stored) : {};
+    }
+
+    document.getElementById("saveAllDataBtn").onclick = () => {
+        const date = selectedDrawDate;
+        const c1 = document.getElementById("manualCod1Input").value.trim();
+        const c2 = document.getElementById("manualCod2Input").value.trim();
+        const draw = document.getElementById("manualDrawInput").value.trim();
+        const resDate = document.getElementById("manualResultDateInput").value.trim();
+        const msg = document.getElementById("saveStatusMsg");
+
+        if(!date) { alert("කරුණාකර පළමුව Draw Date එකක් තෝරන්න."); return; }
+
+        let data = getStoredManualData();
+        if(!data[date]) data[date] = {};
+        data[date].c1 = c1;
+        data[date].c2 = c2;
+        data[date].draw = draw;
+        data[date].res = resDate;
+        
+        localStorage.setItem("manualCodeData", JSON.stringify(data));
+        
+        scCod1 = c1 || "දත්ත නොමැත";
+        scCod2 = c2 || "දත්ත නොමැත";
+        scDraw = draw || "";
+        
+        document.getElementById("cod1Display").textContent = scCod1;
+        document.getElementById("cod2Display").textContent = scCod2;
+        document.getElementById("manualCod1Display").textContent = scCod1;
+        document.getElementById("manualCod2Display").textContent = scCod2;
+        document.getElementById("manualDrawDisplay").textContent = scDraw;
+
+        msg.textContent = "✅ දත්ත සාර්ථකව Browser එකෙහි සුරැකිණි!";
+        msg.style.color = "green";
+        renderStoredDataTable();
+        updateActiveSummary();
+        setTimeout(() => { msg.textContent = ""; }, 3000);
+    };
+
+    function renderStoredDataTable() {
+        const data = getStoredManualData();
+        const tbody = document.getElementById("storedDataBody");
+        tbody.innerHTML = "";
+        Object.keys(data).sort((a,b) => new Date(b) - new Date(a)).forEach(date => {
+            const row = document.createElement("tr");
+            let resHtml = "-";
+            if(data[date].res) {
+                const parts = data[date].res.split('&');
+                resHtml = parts.length > 1 ? `<span class="res-number">${parts[0].trim()}</span> & <span class="res-date">${parts[1].trim()}</span>` : `<span class="res-number">${data[date].res}</span>`;
+            }
+            
+            // Generate Guessed Numbers View
+            let guessHtml = "<div style='max-width:200px;'>";
+            if(data[date].guesses) {
+                const g = data[date].guesses;
+                if(g.best && g.best.length) g.best.forEach(n => guessHtml += `<span class="mini-ball bg-dark-green">${n}</span>`);
+                if(g.good && g.good.length) g.good.forEach(n => guessHtml += `<span class="mini-ball bg-light-green">${n}</span>`);
+                if(g.normal && g.normal.length) g.normal.forEach(n => guessHtml += `<span class="mini-ball bg-yellow">${n}</span>`);
+            } else { guessHtml += "No Guesses"; }
+            guessHtml += "</div>";
+
+            let top8Html = "";
+            if(data[date].top8) {
+                top8Html = `<div style="margin-top:5px;">`;
+                data[date].top8.forEach((num, idx) => {
+                    let colorClass = "top8-red";
+                    if(idx < 4) colorClass = "top8-green";
+                    else if(idx === 4) colorClass = "top8-yellow";
+                    top8Html += `<span class="top8-item ${colorClass}">${num}</span>`;
+                });
+                top8Html += `</div>`;
+            }
+
+            row.innerHTML = `<td>${date}</td><td><b>${data[date].draw || "-"}</b>${top8Html}</td><td>${data[date].c1 || "-"}</td><td>${data[date].c2 || "-"}</td><td>${guessHtml}</td><td>${resHtml}</td><td><button class="edit-btn" onclick="editStoredRecord('${date}')">Edit</button><button class="delete-btn" onclick="deleteStoredRecord('${date}')">Delete</button></td>`;
+            tbody.appendChild(row);
+        });
+    }
+
+    window.deleteStoredRecord = (date) => {
+        if(confirm(date + " දත්ත මකා දැමීමට අවශ්‍යද?")) {
+            let data = getStoredManualData();
+            delete data[date];
+            localStorage.setItem("manualCodeData", JSON.stringify(data));
+            renderStoredDataTable();
+        }
+    };
+
+    window.editStoredRecord = (date) => {
+        const data = getStoredManualData();
+        const d = data[date];
+        document.getElementById("drawDateInput").value = date;
+        selectedDrawDate = date;
+        document.getElementById("drawDateDisplay").textContent = "Draw Date: " + date;
+        document.getElementById("drawDateDisplay").style.display = "inline-block";
+        document.getElementById("manualCod1Input").value = d.c1 || "";
+        document.getElementById("manualCod2Input").value = d.c2 || "";
+        document.getElementById("manualDrawInput").value = d.draw || "";
+        document.getElementById("manualResultDateInput").value = d.res || "";
+        scCod1 = d.c1 || "දත්ත නොමැත"; scCod2 = d.c2 || "දත්ත නොමැත"; scDraw = d.draw || "";
+        document.getElementById("cod1Display").textContent = scCod1;
+        document.getElementById("manualCod1Display").textContent = scCod1;
+        document.getElementById("cod2Display").textContent = scCod2;
+        document.getElementById("manualCod2Display").textContent = scCod2;
+        document.getElementById("manualDrawDisplay").textContent = scDraw;
+        document.getElementById("manualCodeWrapper").style.display = "block";
+        updateActiveSummary();
+        window.scrollTo(0, document.getElementById("manualCodeWrapper").offsetTop);
+    };
+
+    window.onload = () => {
+        const savedJson = localStorage.getItem("storedLotteryJson");
+        if (savedJson) {
+            loadedJson = JSON.parse(savedJson);
+            document.getElementById("message").textContent = "✅ පෙර සුරැකි JSON දත්ත ස්වයංක්‍රීයව පූරණය විය.";
+            document.getElementById("message").style.color = "green";
+            displayYears(loadedJson);
+        }
+        loadStoredHtmlApp();
+        updateActiveSummary();
+    };
+
+    function saveToStorage() {
+        if (!loadedJson) { alert("ගබඩා කිරීමට JSON දත්ත නොමැත."); return; }
+        localStorage.setItem("storedLotteryJson", JSON.stringify(loadedJson));
+        alert("✅ JSON දත්ත සාර්ථකව Browser එක තුළ ගබඩා කරන ලදි.");
+    }
+    document.getElementById("saveToStorageBtn").onclick = saveToStorage;
+
+    function resetJSON() {
+        if(confirm("ඔබට විශ්වාසද? මෙයින් ගබඩා කර ඇති සියලුම JSON දත්ත මැකී යනු ඇත.")) {
+            loadedJson = null; localStorage.removeItem("storedLotteryJson");
+            document.getElementById("jsonFileInput").value = "";
+            document.getElementById("message").textContent = "🗑️ සියලුම JSON දත්ත මකා දමන ලදි.";
+            document.getElementById("message").style.color = "red";
+            document.getElementById("yearList").innerHTML = "";
+        }
+    }
+
+    function resetPhoto() {
+        scCod1 = "දත්ත නොමැත"; scCod2 = "දත්ත නොමැත";
+        document.getElementById("imageFileInput").value = "";
+        document.getElementById("previewImg").style.display = "none";
+        document.getElementById("imageMessage").textContent = "";
+        document.getElementById("cod1Display").textContent = "දත්ත නොමැත";
+        document.getElementById("cod2Display").textContent = "දත්ත නොමැත";
+        updateActiveSummary();
+    }
+
+    function resetManualCodes() {
+        scCod1 = "දත්ත නොමැත"; scCod2 = "දත්ත නොමැත"; scDraw = "";
+        document.getElementById("manualCod1Input").value = "";
+        document.getElementById("manualCod2Input").value = "";
+        document.getElementById("manualDrawInput").value = "";
+        document.getElementById("manualResultDateInput").value = "";
+        document.getElementById("manualCod1Display").textContent = "";
+        document.getElementById("manualCod2Display").textContent = "";
+        document.getElementById("manualDrawDisplay").textContent = "";
+        document.getElementById("cod1Display").textContent = "දත්ත නොමැත";
+        document.getElementById("cod2Display").textContent = "දත්ත නොමැත";
+        document.getElementById("manualErrorMsg").textContent = "";
+        updateActiveSummary();
+    }
+
+    function resetDateAndYear() {
+        firstYear = null; secondYear = null; selectedDrawDate = null;
+        document.getElementById("yearInput").value = "";
+        document.getElementById("drawDateInput").value = "";
+        document.getElementById("year1Display").style.display = "none";
+        document.getElementById("year2Display").style.display = "none";
+        document.getElementById("drawDateDisplay").style.display = "none";
+        document.getElementById("yearMessage").textContent = "";
+        updateActiveSummary();
+    }
+
+    function resetFirst2() {
+        document.getElementById("first2Input").value = "";
+        document.getElementById("first2Message").textContent = "";
+    }
+
+    function parseDate(s){if(!s)return null;const d=new Date(String(s).replace(/\//g,"-"));return isNaN(d)?null:d;}
+    function guessDateFromRaw(r){const m=String(r).match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);return m?new Date(`${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`):null;}
+
+    function displayYears(data) {
+        const yearListDiv=document.getElementById("yearList");
+        const years=new Set();
+        data.forEach(it=>{
+            const d=parseDate(it.date)||guessDateFromRaw(it.raw);
+            if(d)years.add(d.getFullYear());
+        });
+        if(years.size > 0) {
+            yearListDiv.innerHTML = "📆 ගොනුවේ වර්ෂ (Click කර ඇතුළත් කරන්න): <br>";
+            [...years].sort((a,b)=>b-a).slice(0, 10).forEach(yr => {
+                const btn = document.createElement("button");
+                btn.textContent = yr; btn.className = "year-btn"; btn.style.margin = "5px";
+                btn.onclick = () => {
+                    if(!firstYear) { firstYear = yr; document.getElementById("year1Display").textContent = yr; document.getElementById("year1Display").style.display = "inline-block"; }
+                    else if(!secondYear) { secondYear = yr; document.getElementById("year2Display").textContent = yr; document.getElementById("year2Display").style.display = "inline-block"; }
+                    else alert("වර්ෂ 2ක් දැනටමත් තෝරා ඇත. Reset කරන්න.");
+                };
+                yearListDiv.appendChild(btn);
+            });
+        }
+    }
+
+    document.getElementById("uploadBtn").onclick=()=>{
+      const input=document.getElementById("jsonFileInput");
+      const msg=document.getElementById("message");
+      if(!input.files.length){msg.textContent="කරුණාකර JSON ගොනුව තෝරන්න.";msg.style.color="red";return;}
+      const reader=new FileReader();
+      reader.onload=e=>{
+        try{
+          const data=JSON.parse(e.target.result);
+          if(!Array.isArray(data))throw 0;
+          loadedJson=data;
+          msg.textContent="✅ JSON ගොනුව සාර්ථකව පූරණය විය."; msg.style.color="green";
+          displayYears(data);
+        }catch{ msg.textContent="❌ JSON ගොනුව වැරදියි."; msg.style.color="red"; }
+      };
+      reader.readAsText(input.files[0]);
+    };
+
+    document.getElementById("uploadImageBtn").onclick = async () => {
+        const input = document.getElementById("imageFileInput");
+        const loader = document.getElementById("loader");
+        const preview = document.getElementById("previewImg");
+        const msg = document.getElementById("imageMessage");
+        if (!input.files.length) return;
+        loader.style.display = "inline";
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => { preview.src = e.target.result; preview.style.display = "block"; };
+        reader.readAsDataURL(file);
+        try {
+            const { data: { text } } = await Tesseract.recognize(file, 'eng');
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+            if (lines.length >= 2) {
+                let topRaw = lines[0].split('^')[0].split('=')[0];
+                scCod1 = topRaw.replace(/\D/g, "");
+                let bottomRaw = lines[lines.length - 1];
+                scCod2 = bottomRaw.replace(/\D/g, "");
+                document.getElementById("cod1Display").textContent = scCod1;
+                document.getElementById("cod2Display").textContent = scCod2;
+                document.getElementById("manualCod1Input").value = scCod1;
+                document.getElementById("manualCod2Input").value = scCod2;
+                msg.textContent = "✅ Screenshot දත්ත සාර්ථකව හඳුනා ගන්නා ලදි.";
+                updateActiveSummary();
+            } else msg.textContent = "⚠️ පින්තූරය පැහැදිලි නැත. නැවත උත්සාහ කරන්න.";
+        } catch (e) { msg.textContent = "❌ දෝෂයකි. නැවත උත්සාහ කරන්න."; } finally { loader.style.display = "none"; }
+    };
+
+    document.getElementById("submitYearBtn").onclick=()=>{
+      firstYear=document.getElementById("yearInput").value.trim();
+      document.getElementById("year1Display").textContent=firstYear;
+      document.getElementById("year1Display").style.display="inline-block";
+    };
+    document.getElementById("submitSecondYearBtn").onclick=()=>{
+      secondYear=document.getElementById("yearInput").value.trim();
+      document.getElementById("year2Display").textContent=secondYear;
+      document.getElementById("year2Display").style.display="inline-block";
+    };
+
+    document.getElementById("submitDrawDateBtn").onclick=()=>{
+      selectedDrawDate = document.getElementById("drawDateInput").value;
+      if(selectedDrawDate) {
+        document.getElementById("drawDateDisplay").textContent = "Draw Date: " + selectedDrawDate;
+        document.getElementById("drawDateDisplay").style.display = "inline-block";
+        const storedData = getStoredManualData();
+        if(storedData[selectedDrawDate]) {
+            const d = storedData[selectedDrawDate];
+            scCod1 = d.c1 || "දත්ත නොමැත"; scCod2 = d.c2 || "දත්ත නොමැත"; scDraw = d.draw || "";
+            document.getElementById("manualCod1Input").value = d.c1 || "";
+            document.getElementById("manualCod2Input").value = d.c2 || "";
+            document.getElementById("manualDrawInput").value = d.draw || "";
+            document.getElementById("manualResultDateInput").value = d.res || "";
+            document.getElementById("cod1Display").textContent = scCod1;
+            document.getElementById("cod2Display").textContent = scCod2;
+            document.getElementById("manualDrawDisplay").textContent = scDraw;
+        }
+        if(document.getElementById("predictionBox").style.display === "block") renderPredictions(currentLimit, currentCodeLimit);
+        updateActiveSummary();
+      }
+    };
+
+    document.getElementById("submitFirst2Btn").onclick=()=>{
+      const v=document.getElementById("first2Input").value.trim();
+      const m=document.getElementById("first2Message");
+      if(!/^\d{2}$/.test(v)){m.textContent="දෙඅංකයක් ඇතුළත් කරන්න";m.style.color="red";}
+      else{m.textContent="✅ පළමු අංක 2 නිවැරදිව ලබාගන්නා ලදි.";m.style.color="green";}
+    };
+
+    document.getElementById("analyzeYearBtn").onclick=()=>{
+      const f2=document.getElementById("first2Input").value.trim();
+      const out=document.getElementById("analysisOutput");
+      const ymsg=document.getElementById("yearMessage");
+      if(!loadedJson || !firstYear || !secondYear || !/^\d{2}$/.test(f2)) {
+          ymsg.textContent="සියලු දත්ත ඇතුලත් කර ඇත්දැයි පරීක්ෂා කරන්න.";
+          ymsg.style.color="red"; return;
+      }
+      const all=loadedJson.filter(it=>{
+        const d=parseDate(it.date)||guessDateFromRaw(it.raw);
+        const y=d?d.getFullYear():null;
+        return y==firstYear||y==secondYear;
+      }).map(it=>{
+        const digits=(it.digits6?String(it.digits6):String(it.code||"").replace(/\D/g,"")).padStart(6,"0");
+        return {...it,digits6:digits};
+      });
+      all.sort((a,b)=>parseDate(a.date)-parseDate(b.date));
+      matchedResults=[];
+      all.forEach(it=>{
+        if(it.digits6.slice(0,2)===f2){
+          matchedResults.push(it);
+          const cur=parseDate(it.date)||guessDateFromRaw(it.raw);
+          if(cur){
+            const next=new Date(cur); next.setDate(cur.getDate()+1);
+            const nextItem=all.find(n=>{
+              const nd=parseDate(n.date)||guessDateFromRaw(n.raw);
+              return nd&&nd.toISOString().slice(0,10)===next.toISOString().slice(0,10);
+            });
+            if(nextItem)matchedResults.push(nextItem);
+          }
+        }
+      });
+      if(matchedResults.length){
+        let tbl="<table><thead><tr><th>වර්ෂය</th><th>දිනය</th><th>අකුර</th><th>අංක 6</th><th>පළමු 2</th><th>අවසන් 2</th></tr></thead><tbody>";
+        matchedResults.forEach(it=>{
+          const d=parseDate(it.date)||guessDateFromRaw(it.raw);
+          tbl+=`<tr><td>${d?d.getFullYear():""}</td><td>${it.date||""}</td><td>${it.letter||""}</td><td>${it.digits6}</td><td>${it.digits6.slice(0,2)}</td><td>${it.digits6.slice(-2)}</td></tr>`;
+        });
+        tbl+="</tbody></table>";
+        out.innerHTML=tbl; out.style.display="block";
+        document.getElementById("toggleAnalysisBtn").style.display="inline-block";
+        document.getElementById("downloadExcelBtn").style.display="inline-block";
+        document.getElementById("downloadJsonBtn").style.display="inline-block";
+        document.getElementById("getLast2Btn").style.display="inline-block";
+        document.getElementById("getPredictionBtn").style.display="inline-block";
+        ymsg.textContent="✅ විශ්ලේෂණය සාර්ථකයි."; ymsg.style.color="green";
+      }
+    };
+
+    function getTopNumbers() {
+      const counts={}; const groupedTens={}; const groupedOnes={};
+      matchedResults.forEach(it=>{
+        const last2=(it.digits6||"").slice(-2);
+        if(last2.length===2){
+          const t=last2[0], o=last2[1];
+          groupedTens[t]=(groupedTens[t]||"")+t; groupedOnes[o]=(groupedOnes[o]||"")+o;
+          counts[t]=(counts[t]||0)+1; counts[o]=(counts[o]||0)+1;
+        }
+      });
+      return { counts, sorted: Object.keys(counts).sort((a,b)=>counts[b]-counts[a]), tens: groupedTens, ones: groupedOnes };
+    }
+
+    function generateCodePredictions(codeStr, topNumbers, mode) {
+      if(!codeStr || codeStr === "දත්ත නොමැත") return [];
+      let results = [];
+      for(let i=0; i < codeStr.length - 1; i++) {
+        let n1 = codeStr[i], n2 = codeStr[i+1];
+        if(topNumbers.includes(n1) || topNumbers.includes(n2)) {
+          if(mode === "both") results.push(n1===n2 ? n1+n2 : (n1+n2)+":"+(n2+n1));
+          else results.push(n2+n1);
+        }
+      }
+      return [...new Set(results)];
+    }
+
+    function updateSummaryBoard() {
+        const tags = document.querySelectorAll(".num-tag");
+        const sumBest = document.getElementById("sumBest");
+        const sumGood = document.getElementById("sumGood");
+        const sumNormal = document.getElementById("sumNormal");
+        const sumRejected = document.getElementById("sumRejected");
+        [sumBest, sumGood, sumNormal, sumRejected].forEach(el => el.innerHTML = "");
+        tags.forEach(t => {
+            const val = t.textContent;
+            if(t.classList.contains("bg-dark-green")) sumBest.innerHTML += `<div class="ball bg-dark-green">${val}</div>`;
+            else if(t.classList.contains("bg-light-green")) sumGood.innerHTML += `<div class="ball bg-light-green">${val}</div>`;
+            else if(t.classList.contains("bg-yellow")) sumNormal.innerHTML += `<div class="ball bg-yellow">${val}</div>`;
+            else if(t.classList.contains("bg-red")) sumRejected.innerHTML += `<div class="rejected-face"><span class="sad-icon">☹</span><span style="font-weight:900;">${val}</span></div>`;
+        });
+    }
+
+    function handleColorChange(el) {
+        if (el.classList.contains("bg-dark-green")) { el.classList.remove("bg-dark-green"); el.classList.add("bg-light-green"); colorHistory.push({el, p:"bg-dark-green", n:"bg-light-green"}); }
+        else if (el.classList.contains("bg-light-green")) { el.classList.remove("bg-light-green"); el.classList.add("bg-yellow"); colorHistory.push({el, p:"bg-light-green", n:"bg-yellow"}); }
+        else if (el.classList.contains("bg-yellow")) { el.classList.remove("bg-yellow"); el.classList.add("bg-red"); colorHistory.push({el, p:"bg-yellow", n:"bg-red"}); }
+        else if (el.classList.contains("bg-red")) { el.classList.remove("bg-red"); colorHistory.push({el, p:"bg-red", n:""}); }
+        else { el.classList.add("bg-dark-green"); colorHistory.push({el, p:"", n:"bg-dark-green"}); }
+        updateSummaryBoard();
+    }
+
+    document.getElementById("undoColorBtn").onclick = () => {
+        let a = colorHistory.pop(); if(!a) return;
+        if(a.n) a.el.classList.remove(a.n); if(a.p) a.el.classList.add(a.p);
+        updateSummaryBoard();
+    };
+
+    function renderPredictions(limit, codeLimit = currentCodeLimit) {
+      currentLimit = limit; currentCodeLimit = codeLimit;
+      document.getElementById("setTop4Btn").className = limit===4 ? "selector-btn active-selector" : "selector-btn";
+      document.getElementById("setTop5Btn").className = limit===5 ? "selector-btn active-selector" : "selector-btn";
+      document.getElementById("setCod6Btn").className = codeLimit===6 ? "code-selector-btn active-code" : "code-selector-btn";
+      document.getElementById("setCod7Btn").className = codeLimit===7 ? "code-selector-btn active-code" : "code-selector-btn";
+      document.getElementById("setCod8Btn").className = codeLimit===8 ? "code-selector-btn active-code" : "code-selector-btn";
+      const data = getTopNumbers();
+      const topSelected = data.sorted.slice(0, limit);
+      const topCode = data.sorted.slice(0, codeLimit);
+      const now = new Date();
+      document.getElementById("predictionTimestamp").innerHTML = "📅 ගණනය කළ දිනය: " + now.toLocaleDateString() + " | ⏰ වේලාව: " + now.toLocaleTimeString();
+      const drawBox = document.getElementById("predictionDrawDate");
+      const mainTitle = document.getElementById("mainPredictionTitle");
+      if(selectedDrawDate) {
+          let drawStr = scDraw ? " (DRAW: " + scDraw + ")" : "";
+          drawBox.innerHTML = "🎯 DRAW DATE: " + selectedDrawDate + drawStr;
+          drawBox.style.display = "block";
+          mainTitle.innerHTML = "🔮 " + selectedDrawDate + drawStr + " : අනුමාන";
+      } else { drawBox.style.display = "none"; mainTitle.innerHTML = "🔮 Best guess number passed"; }
+      let html = `<div style="display:flex; justify-content:space-around; background:rgba(255,255,255,0.5); padding:15px; border-radius:15px;"><p style="font-size: 1.5em; font-weight:800;"><b>TOP ${limit} :</b> <span style="color:#e67e22">${topSelected.join(", ")}</span></p><p style="font-size: 1.5em; font-weight:800;"><b>CODE ${codeLimit} :</b> <span style="color:#6c5ce7">${topCode.join(", ")}</span></p></div><hr style="border:1px dashed #ccc; margin:20px 0;">`;
+      let genSet = new Set();
+      topSelected.forEach(t => {
+        let rowItems = [];
+        topCode.forEach(o => { genSet.add(t+o); genSet.add(o+t); rowItems.push(t===o ? t+o : (t+o)+":"+(o+t)); });
+        html += `<div class="pred-row">${rowItems.join(" : ")}</div>`;
+      });
+      document.getElementById("predictionContent").innerHTML = html;
+      const c1 = generateCodePredictions(scCod1, topSelected, "both");
+      const c2 = generateCodePredictions(scCod2, topSelected, "rtl");
+      document.getElementById("cod1Display").textContent = scCod1;
+      document.getElementById("cod2Display").textContent = scCod2;
+      document.getElementById("cod1Predictions").innerHTML = "<b>අනුමාන අංක (CODE 1):</b><br>" + (c1.length ? c1.join("  ;  ") : "දත්ත නොමැත");
+      document.getElementById("cod2Predictions").innerHTML = "<b>අනුමාන අංක (CODE 2):</b><br>" + (c2.length ? c2.join("  :  ") : "දත්ත නොමැත");
+      let best = [];
+      c1.forEach(i => i.split(':').forEach(n => { if(genSet.has(n.trim())) best.push(n.trim()); }));
+      c2.forEach(n => { if(genSet.has(n.trim())) best.push(n.trim()); });
+      const finalBest = [...new Set(best)].sort();
+      if(finalBest.length) {
+        let grid = '<table class="best-numbers-grid"><tbody>';
+        let groups = {};
+        finalBest.forEach(n => { let lastDigit = n[1]; if(!groups[lastDigit]) groups[lastDigit] = []; groups[lastDigit].push(n); });
+        Object.keys(groups).sort().forEach(d => {
+          grid += `<tr><td class="label-cell">${d}</td><td>`;
+          groups[d].sort().forEach((num, idx) => { grid += `<span class="num-tag" onclick="handleColorChange(this)">${num}</span>`; if(idx < groups[d].length - 1) grid += '<span style="color:#e67e22; font-weight:bold; margin:0 10px;">➔</span>'; });
+          grid += '</td></tr>';
+        });
+        document.getElementById("bestNumbersContent").innerHTML = grid + '</tbody></table>';
+      }
+      
+      if (document.getElementById("day3AnalysisWrapper").style.display === "block") performDay3Analysis();
+      updateSummaryBoard();
+    }
+
+    document.getElementById("getPredictionBtn").onclick = () => {
+        const box = document.getElementById("predictionBox");
+        if(box.style.display === "none" || box.style.display === "") {
+            document.getElementById("predictionContent").style.display = "none";
+            document.getElementById("cod1FullSection").style.display = "none";
+            document.getElementById("cod2FullSection").style.display = "none";
+            document.getElementById("toggleRowsBtn").textContent = "👁️ අනුමාන පේළි සහ Codes පෙන්වන්න";
+            renderPredictions(4, 7);
+            box.style.display = "block";
+        } else box.style.display = "none";
+    };
+
+    document.getElementById("setTop4Btn").onclick = () => renderPredictions(4);
+    document.getElementById("setTop5Btn").onclick = () => renderPredictions(5);
+    document.getElementById("setCod6Btn").onclick = () => renderPredictions(currentLimit, 6);
+    document.getElementById("setCod7Btn").onclick = () => renderPredictions(currentLimit, 7);
+    document.getElementById("setCod8Btn").onclick = () => renderPredictions(currentLimit, 8);
+    document.getElementById("getLast2Btn").onclick=()=>{
+      const table=document.getElementById("last2Table");
+      if(table.style.display==="none" || table.style.display===""){
+        const tbody=document.getElementById("last2TableBody");
+        tbody.innerHTML="";
+        const data = getTopNumbers();
+        data.sorted.slice(0, 10).forEach((k,i)=>{
+          let rc = i===0?"rank1":i===1?"rank2":i===2?"rank3":"";
+          tbody.innerHTML+=`<tr><td>${data.tens[k]||""}</td><td>${data.ones[k]||""}</td><td class="${rc}" style="text-align:left;">★ ${k.repeat(data.counts[k])} (${data.counts[k]})</td></tr>`;
+        });
+        table.style.display="block";
+      } else table.style.display="none";
+    };
+    document.getElementById("toggleAnalysisBtn").onclick = () => {
+        const out = document.getElementById("analysisOutput");
+        out.style.display = out.style.display === "none" ? "block" : "none";
+    };
+    document.getElementById("toggleRowsBtn").onclick = () => {
+        const content = document.getElementById("predictionContent");
+        const c1 = document.getElementById("cod1FullSection");
+        const c2 = document.getElementById("cod2FullSection");
+        const isHidden = content.style.display === "none";
+        content.style.display = isHidden ? "block" : "none";
+        c1.style.display = isHidden ? "block" : "none";
+        c2.style.display = isHidden ? "block" : "none";
+        document.getElementById("toggleRowsBtn").textContent = isHidden ? "🙈 අනුමාන පේළි සහ Codes සඟවන්න" : "👁️ අනුමාන පේළි සහ Codes පෙන්වන්න";
+    };
+  </script>
+</body>
+</html>
